@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Hire Calendar</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .setup-notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .setup-notice.show {
+            display: block;
+        }
+
+        .setup-notice h3 {
+            color: #856404;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .setup-steps {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .setup-steps ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+
+        .setup-steps li {
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+
+        .setup-steps code {
+            background-color: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+
+        .form-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        .setup-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .month-year {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            flex: 1;
+            text-align: center;
+            min-width: 200px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 16px;
+            background-color: #4472C4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2E5DAA;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .calendar {
+            margin-bottom: 30px;
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 2px;
+        }
+
+        .weekday {
+            background-color: #4472C4;
+            color: white;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            font-size: 12px;
+            min-height: 80px;
+            overflow-y: auto;
+        }
+
+        .day:hover {
+            background-color: #e8f0fe;
+        }
+
+        .day.other-month {
+            background-color: #fafafa;
+            color: #ccc;
+        }
+
+        .day-number {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .day.other-month .day-number {
+            color: #ccc;
+        }
+
+        .hire-entry {
+            background-color: #E8F4F8;
+            border-left: 3px solid #4472C4;
+            padding: 2px 4px;
+            margin-top: 2px;
+            font-size: 10px;
+            color: #2c3e50;
+            border-radius: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+        }
+
+        .sidebar {
+            background-color: #f0f4f8;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .add-hire-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .add-hire-form input,
+        .add-hire-form textarea {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        .add-hire-form textarea {
+            resize: vertical;
+            min-height: 50px;
+        }
+
+        .upcoming-hires {
+            margin-top: 20px;
+        }
+
+        .upcoming-hires h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .hire-item {
+            background-color: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-left: 4px solid #4472C4;
+            border-radius: 2px;
+            font-size: 12px;
+        }
+
+        .hire-item .name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .hire-item .date {
+            color: #666;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .hire-item .position {
+            color: #888;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .delete-btn {
+            background-color: #e74c3c;
+            padding: 4px 8px;
+            font-size: 11px;
+            margin-top: 5px;
+            width: 100%;
+        }
+
+        .delete-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .sync-status {
+            font-size: 11px;
+            color: #666;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .sync-status.synced {
+            color: #27ae60;
+        }
+
+        .sync-status.error {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="setup-notice" id="setupNotice">
+            <h3>⚙️ Quick Setup (3 steps, 2 minutes)</h3>
+
+            <div class="setup-steps">
+                <ol>
+                    <li><strong>Create Supabase Account:</strong> Go to <a href="https://supabase.com" target="_blank">supabase.com</a> → Click "Start your project" (sign in with GitHub)</li>
+                    <li><strong>Create Project:</strong> Name it "hire-calendar", choose any region → Wait ~1 minute for it to load</li>
+                    <li><strong>Get Your Keys:</strong> Go to Settings → API → Copy the <code>Project URL</code> and <code>anon public</code> key</li>
+                </ol>
+            </div>
+
+            <div style="background-color: #f0f8ff; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
+                <p><strong>Then paste your keys below:</strong></p>
+                <div class="form-group">
+                    <label>Supabase URL</label>
+                    <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+                </div>
+                <div class="form-group">
+                    <label>Supabase Anon Key</label>
+                    <input type="password" id="supabaseKey" placeholder="eyJhbGc...">
+                </div>
+                <div class="setup-buttons">
+                    <button onclick="setupSupabase()">Connect to Supabase</button>
+                </div>
+            </div>
+        </div>
+
+        <h1>📅 New Hire Start Date Calendar (Team Shared)</h1>
+
+        <div class="header">
+            <div class="month-year" id="monthYear"></div>
+            <div class="controls">
+                <button onclick="previousMonth()">← Previous</button>
+                <button onclick="todayMonth()">Today</button>
+                <button onclick="nextMonth()">Next →</button>
+            </div>
+        </div>
+
+        <div class="calendar">
+            <div class="weekdays">
+                <div class="weekday">Sunday</div>
+                <div class="weekday">Monday</div>
+                <div class="weekday">Tuesday</div>
+                <div class="weekday">Wednesday</div>
+                <div class="weekday">Thursday</div>
+                <div class="weekday">Friday</div>
+                <div class="weekday">Saturday</div>
+            </div>
+            <div class="days" id="daysContainer"></div>
+        </div>
+
+        <div class="sidebar">
+            <h2>Add New Hire</h2>
+            <div class="add-hire-form">
+                <input type="text" id="employeeName" placeholder="Employee Name (e.g., Sarah Johnson)">
+                <input type="text" id="position" placeholder="Position (e.g., Senior Software Engineer)">
+                <input type="date" id="startDate">
+                <input type="text" id="department" placeholder="Department (e.g., Engineering)">
+                <textarea id="notes" placeholder="Any additional notes..."></textarea>
+                <button onclick="addHire()" id="addBtn" disabled>Add Hire</button>
+            </div>
+
+            <div class="sync-status" id="syncStatus">Waiting for connection...</div>
+
+            <div class="upcoming-hires">
+                <h3>Upcoming Hires (Next 30 Days)</h3>
+                <div id="upcomingList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDate = new Date();
+        let hires = [];
+        let supabase = null;
+
+        // Wait for supabase to load, then try to connect if we have saved credentials
+        function waitForSupabase() {
+            if (window.supabase && window.supabase.createClient) {
+                const savedUrl = localStorage.getItem('supabaseUrl');
+                const savedKey = localStorage.getItem('supabaseKey');
+
+                if (savedUrl && savedKey) {
+                    document.getElementById('supabaseUrl').value = savedUrl;
+                    document.getElementById('supabaseKey').value = savedKey;
+                    setupSupabase();
+                } else {
+                    document.getElementById('setupNotice').classList.add('show');
+                }
+            } else {
+                setTimeout(waitForSupabase, 500);
+            }
+        }
+
+        async function setupSupabase() {
+            const url = document.getElementById('supabaseUrl').value.trim();
+            const key = document.getElementById('supabaseKey').value.trim();
+
+            if (!url || !key) {
+                alert('Please enter both URL and API key');
+                return;
+            }
+
+            try {
+                if (!window.supabase) {
+                    alert('Supabase library failed to load. Please refresh the page and try again.');
+                    return;
+                }
+
+                supabase = window.supabase.createClient(url, key);
+
+                // Test the connection
+                const { data, error } = await supabase.from('hires').select('count');
+
+                if (error) {
+                    throw new Error(error.message);
+                }
+
+                // Success! Save credentials and load data
+                localStorage.setItem('supabaseUrl', url);
+                localStorage.setItem('supabaseKey', key);
+
+                document.getElementById('setupNotice').classList.remove('show');
+                document.getElementById('addBtn').disabled = false;
+                updateSyncStatus(true);
+
+                // Load hires
+                await loadHires();
+
+                // Listen for changes
+                supabase
+                    .channel('hires')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'hires' }, () => {
+                        loadHires();
+                    })
+                    .subscribe();
+
+            } catch (e) {
+                console.error('Setup error:', e);
+                alert('Connection failed: ' + e.message);
+                updateSyncStatus(false, e.message);
+            }
+        }
+
+        async function loadHires() {
+            if (!supabase) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from('hires')
+                    .select('*')
+                    .order('start_date', { ascending: true });
+
+                if (error) throw error;
+
+                hires = (data || []).map(h => ({
+                    ...h,
+                    startDate: new Date(h.start_date)
+                }));
+
+                render();
+                updateSyncStatus(true);
+            } catch (e) {
+                console.error('Load error:', e);
+                updateSyncStatus(false, e.message);
+            }
+        }
+
+        function updateSyncStatus(connected, error = null) {
+            const status = document.getElementById('syncStatus');
+            if (connected) {
+                status.textContent = '✓ Connected & syncing';
+                status.classList.add('synced');
+                status.classList.remove('error');
+            } else {
+                status.textContent = '✗ Error: ' + (error || 'Connection failed');
+                status.classList.add('error');
+                status.classList.remove('synced');
+            }
+        }
+
+        function render() {
+            renderCalendar();
+            renderUpcomingHires();
+        }
+
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('monthYear').textContent = `${monthNames[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            const container = document.getElementById('daysContainer');
+            container.innerHTML = '';
+
+            for (let i = firstDay - 1; i >= 0; i--) {
+                container.appendChild(createDayElement(daysInPrevMonth - i, true, null));
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                container.appendChild(createDayElement(day, false, new Date(year, month, day)));
+            }
+
+            const totalCells = container.children.length;
+            for (let day = 1; day <= 42 - totalCells; day++) {
+                container.appendChild(createDayElement(day, true, null));
+            }
+        }
+
+        function createDayElement(day, otherMonth, date) {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'day' + (otherMonth ? ' other-month' : '');
+
+            const dayNum = document.createElement('div');
+            dayNum.className = 'day-number';
+            dayNum.textContent = day;
+            dayEl.appendChild(dayNum);
+
+            if (date) {
+                hires.forEach(h => {
+                    if (h.startDate.toDateString() === date.toDateString()) {
+                        const entry = document.createElement('div');
+                        entry.className = 'hire-entry';
+                        entry.textContent = h.name;
+                        entry.title = h.position;
+                        dayEl.appendChild(entry);
+                    }
+                });
+            }
+
+            return dayEl;
+        }
+
+        function renderUpcomingHires() {
+            const now = new Date();
+            const futureDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+            const upcoming = hires.filter(h => h.startDate >= now && h.startDate <= futureDate);
+            const list = document.getElementById('upcomingList');
+            list.innerHTML = '';
+
+            if (upcoming.length === 0) {
+                list.innerHTML = '<p style="color: #999; font-size: 12px;">No upcoming hires</p>';
+                return;
+            }
+
+            upcoming.forEach(h => {
+                const item = document.createElement('div');
+                item.className = 'hire-item';
+                item.innerHTML = `
+                    <div class="name">${h.name}</div>
+                    <div class="position">${h.position}</div>
+                    <div class="date">Starts: ${h.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                    <button class="delete-btn" onclick="deleteHire(${h.id})">Remove</button>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function addHire() {
+            if (!supabase) {
+                alert('Not connected to database');
+                return;
+            }
+
+            const name = document.getElementById('employeeName').value.trim();
+            const position = document.getElementById('position').value.trim();
+            const startDate = document.getElementById('startDate').value;
+            const department = document.getElementById('department').value.trim();
+            const notes = document.getElementById('notes').value.trim();
+
+            if (!name || !position || !startDate) {
+                alert('Please fill in Name, Position, and Start Date');
+                return;
+            }
+
+            try {
+                const { error } = await supabase.from('hires').insert({
+                    name, position, department, start_date: startDate, notes
+                });
+
+                if (error) throw error;
+
+                document.getElementById('employeeName').value = '';
+                document.getElementById('position').value = '';
+                document.getElementById('startDate').value = '';
+                document.getElementById('department').value = '';
+                document.getElementById('notes').value = '';
+
+                await loadHires();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function deleteHire(id) {
+            if (!confirm('Remove this hire?')) return;
+
+            try {
+                const { error } = await supabase.from('hires').delete().eq('id', id);
+                if (error) throw error;
+                await loadHires();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            render();
+        }
+
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            render();
+        }
+
+        function todayMonth() {
+            currentDate = new Date();
+            render();
+        }
+
+        // Start waiting for supabase to load
+        waitForSupabase();
+    </script>
+</body>
+</html>
